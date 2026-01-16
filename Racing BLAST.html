@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Racing BLAST by BLaSTeR ReDoX</title>
+    <style>
+        :root { 
+            --neon-blue: #00f2ff; 
+            --neon-red: #ff0055; 
+            --nitro-orange: #ffaa00; 
+            --fire-red: #ff4400;
+            --fly-purple: #9d00ff;
+        }
+        body {
+            margin: 0; background: #0a0a0c;
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+            font-family: 'Segoe UI', sans-serif;
+            color: white;
+        }
+        #game-wrapper { position: relative; width: 100%; max-width: 400px; height: 600px; }
+        canvas {
+            display: block; width: 100%; height: 100%; border-radius: 10px;
+            box-shadow: 0 0 50px rgba(0,0,0,0.8);
+        }
+
+        .full-screen-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(10, 10, 12, 0.98); border-radius: 10px;
+            display: flex; flex-direction: column; align-items: center;
+            justify-content: center; z-index: 200; padding: 20px; box-sizing: border-box;
+            text-align: center; overflow-y: auto;
+        }
+        .hidden { display: none !important; }
+
+        /* FIXED WATERMARK */
+        .permanent-watermark {
+            position: absolute; 
+            bottom: -30px; 
+            left: 50%; 
+            transform: translateX(-50%);
+            color: rgba(255, 255, 255, 0.4); 
+            font-size: 13px; 
+            letter-spacing: 1px;
+            white-space: nowrap; 
+            pointer-events: none;
+            z-index: 999;
+            text-transform: uppercase;
+        }
+
+        #menu-dots { position: absolute; top: 15px; right: 15px; cursor: pointer; z-index: 110; padding: 5px; }
+        .dot { width: 5px; height: 5px; background: white; border-radius: 50%; margin: 3px; }
+        .score-board { position: absolute; top: 10px; left: 15px; font-size: 14px; z-index: 10; }
+        .wallet-display { position: absolute; top: 10px; right: 50px; color: gold; font-weight: bold; z-index: 10; }
+
+        .hud-container {
+            position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+            display: flex; gap: 5px; width: 90%; z-index: 10;
+        }
+        .bar-bg { flex: 1; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; }
+        .bar-fill { height: 100%; border-radius: 3px; }
+
+        button {
+            padding: 12px 25px; background: var(--neon-blue); border: none;
+            font-weight: bold; border-radius: 5px; cursor: pointer; margin: 5px;
+            color: #000; transition: 0.2s; width: 220px;
+        }
+
+        .shop-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 10px; }
+        .color-opt, .map-opt { width: 45px; height: 45px; border-radius: 8px; border: 3px solid transparent; cursor: pointer; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:bold; text-transform:uppercase; }
+        .color-opt.active, .map-opt.active { border-color: white; transform: scale(1.1); }
+
+        #controls { display: flex; justify-content: space-around; width: 100%; max-width: 400px; margin-top: 45px; }
+        .ctrl-btn {
+            width: 75px; height: 75px; background: rgba(255,255,255,0.05);
+            border: 2px solid var(--neon-blue); border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            color: var(--neon-blue); font-size: 24px; font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-wrapper">
+        <div class="score-board">
+            <div id="scoreTxt">SCORE: 0</div>
+            <div id="highScoreTxt" style="color: #00f2ff; font-size: 11px;">HIGH: 0</div>
+            <div id="coinTxt" style="color: gold;">COINS: 0</div>
+        </div>
+        
+        <div id="wallet" class="wallet-display"> 0</div>
+        <div id="menu-dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+
+        <div class="hud-container">
+            <div class="bar-bg"><div id="nitroBar" class="bar-fill" style="background: var(--nitro-orange);"></div></div>
+            <div class="bar-bg"><div id="fireBar" class="bar-fill" style="background: var(--fire-red);"></div></div>
+            <div class="bar-bg"><div id="flyBar" class="bar-fill" style="background: var(--fly-purple);"></div></div>
+        </div>
+
+        <canvas id="gameCanvas" width="400" height="600"></canvas>
+        
+        <div class="permanent-watermark">&copy;BLaSTeR ReDoX</div>
+
+        <div id="ui" class="full-screen-overlay">
+            <h1 style="color: var(--neon-blue); margin: 0; letter-spacing: 3px;">RACING BLAST</h1>
+            <p style="color: #666; font-size: 12px; margin-bottom: 20px;">by BLaSTeR ReDoX</p>
+            <button id="start-btn">START ENGINE</button>
+            <button id="open-shop">SHOP & MAPS</button>
+            <button id="open-how">HOW TO PLAY</button>
+            <button id="open-desc">DESCRIPTION</button>
+        </div>
+
+        <div id="game-over-ui" class="full-screen-overlay hidden">
+            <h1 style="color: var(--neon-red);">GAME OVER</h1>
+            <p id="finalScoreTxt" style="font-size: 20px; margin-bottom: 5px;"></p>
+            <p id="newBestTxt" style="color: #00f2ff; font-weight: bold; margin-bottom: 5px;" class="hidden">NEW HIGH SCORE!</p>
+            <p id="finalCoinTxt" style="color: gold; font-size: 18px; margin-bottom: 20px;"></p>
+            <button id="retry-btn">RETRY</button>
+            <button onclick="location.reload()" style="background: #333; color: white;">HOME</button>
+        </div>
+
+        <div id="pause-ui" class="full-screen-overlay hidden">
+            <h1>PAUSED</h1>
+            <button id="resume-btn">RESUME</button>
+            <button id="restart-game-btn">RESTART</button>
+            <button id="pause-how">HOW TO PLAY</button>
+            <button onclick="location.reload()" style="background: #333; color: white;">HOME</button>
+        </div>
+
+        <div id="shop-overlay" class="full-screen-overlay hidden">
+            <h3 style="margin:5px 0;">VEHICLE COLOR</h3>
+            <div class="shop-grid" id="shopGrid"></div>
+            <h3 style="margin:15px 0 5px 0;">SELECT ENVIRONMENT</h3>
+            <div class="shop-grid" id="mapGrid"></div>
+            <button id="close-shop" style="margin-top: 20px; background: #333; color: white;">BACK</button>
+        </div>
+
+        <div id="how-overlay" class="full-screen-overlay hidden">
+            <h2>HOW TO PLAY</h2>
+            <p style="font-size: 14px; line-height: 1.6; color: #ccc; text-align: left;">
+                Use Left & Right Button To Move The Car. Use Different Kinds Of Super Powers.<br><br>
+                1. <b>Nitro Boost:</b> Speed Up Your Vehicle For 5 Seconds.<br>
+                2. <b>Fire Button:</b> The Car Starts Firing For 5 Seconds.<br>
+                3. <b>Invisible Button:</b> This Makes Your Vehicle Invisible For 5 Seconds.<br><br>
+                <b>Play And Collect Coins. In Future Updates Ill Add Purchase Option.</b><br><br>
+                You Can Choose Different Colour Vehicles & Maps From Shop.
+            </p>
+            <button onclick="this.parentElement.classList.add('hidden')">CLOSE</button>
+        </div>
+
+        <div id="desc-overlay" class="full-screen-overlay hidden">
+            <h2>DESCRIPTION</h2>
+            <p style="font-size: 11px; line-height: 1.4; color: #aaa; text-align: left;">
+                This Game Was Made As An College Project. The Game Is Still In Beta Version. I Am Still Working On It. I Took Some Help From AI So There Could Be Some Bug Or Glitches Too. If You Find Any Then Kindly Inform Me Or Even If You Think The Game Needs Any Improvement Or You Have Any Idea Just Contact With Me Through Mail. Ill Be Grateful To You.<br><br>
+                <b>4th Semester Final Project</b><br>
+                Project Name : Developing An Game Using Various Basic Programmes.<br><br>
+                Submitted by :-<br>
+                Student Name : Hasanat Arefin Wafi<br>
+                Institute : Feni Govt. Computer Institute (FCI)<br>
+                Student ID : 879835<br>
+                Registration No : 1502371525<br>
+                Department : Telecommunication Technology (TCT)<br>
+                Session : 23-24<br>
+                Email : hasanatarefinwafi@gmail.com<br><br>
+                All Rights Reserved To : &copy;BLaSTeR ReDoX
+            </p>
+            <button onclick="this.parentElement.classList.add('hidden')">BACK</button>
+        </div>
+
+        <div id="power-menu" class="full-screen-overlay hidden">
+            <h2 style="color: gold;">SUPER POWERS</h2>
+            <button id="opt-nitro" style="background: var(--nitro-orange);">NITRO BOOST</button>
+            <button id="opt-fire" style="background: var(--fire-red);">FIRE</button>
+            <button id="opt-fly" style="background: var(--fly-purple);">INVISIBLE</button>
+            <button id="close-power" style="background:none; color: #777;">CANCEL</button>
+        </div>
+    </div>
+
+    <div id="controls" class="hidden">
+        <div class="ctrl-btn" id="leftBtn"></div>
+        <div class="ctrl-btn" id="powerBtn" style="font-size: 10px; border-color: gold; color: gold; text-align: center;">SUPER<br>POWER</div>
+        <div class="ctrl-btn" id="rightBtn"></div>
+    </div>
+
+<script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function playSound(freq, type, duration, vol=0.1) {
+        if(audioCtx.state === 'suspended') return;
+        const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+        osc.type = type; osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(); osc.stop(audioCtx.currentTime + duration);
+    }
+
+    let gameActive = false, isPaused = false, score = 0, currentRunCoins = 0, baseSpeed = 6, frame = 0;
+    let enemies = [], bullets = [], particles = [], coins = [], keys = {};
+    let playerColor = "#00f2ff";
+
+    let totalCoins = parseInt(localStorage.getItem('racingBlast_totalCoins')) || 0;
+    let highScore = parseInt(localStorage.getItem('racingBlast_highScore')) || 0;
+    
+    function updateAccountDisplays() {
+        document.getElementById('wallet').innerText = " " + totalCoins;
+        document.getElementById('highScoreTxt').innerText = "HIGH: " + highScore;
+    }
+    updateAccountDisplays();
+
+    const maps = [
+        { name: "Cyber", road: "#1a1a1a", side: "#333", dash: "#fff" },
+        { name: "Desert", road: "#3e2723", side: "#d4a373", dash: "#ffeb3b" },
+        { name: "Tundra", road: "#102027", side: "#b0bec5", dash: "#00e5ff" },
+        { name: "Forest", road: "#0a210f", side: "#2d5a27", dash: "#7fff00" },
+        { name: "Magma", road: "#1a0000", side: "#8b0000", dash: "#ff4500" },
+        { name: "Ocean", road: "#001220", side: "#004e92", dash: "#4fc3f7" }
+    ];
+    let currentMap = maps[0];
+
+    const carColors = ["#00f2ff", "#0077ff", "#0000ff", "#ff0000", "#00ff00", "#9d00ff", "#ffff00", "#ffffff", "#ff00ff", "#ffa500", "#7fff00", "#ff4500"];
+    let nitro = { amt: 100, active: false }, fire = { cooldown: 0, active: false, timer: 0 }, fly = { cooldown: 0, active: false, timer: 0 };
+    const player = { x: 175, y: 480, w: 45, h: 85 };
+
+    const shopGrid = document.getElementById("shopGrid");
+    carColors.forEach(c => {
+        const div = document.createElement("div"); div.className = "color-opt"; div.style.backgroundColor = c;
+        if(c === playerColor) div.classList.add("active");
+        div.onclick = () => { playerColor = c; document.querySelectorAll(".color-opt").forEach(el => el.classList.remove("active")); div.classList.add("active"); };
+        shopGrid.appendChild(div);
+    });
+
+    const mapGrid = document.getElementById("mapGrid");
+    maps.forEach((m, idx) => {
+        const div = document.createElement("div"); div.className = "map-opt"; 
+        div.style.background = m.side; div.style.color = (idx === 1 || idx === 3) ? "#000" : "#fff"; div.innerText = m.name;
+        if(idx === 0) div.classList.add("active");
+        div.onclick = () => { currentMap = m; document.querySelectorAll(".map-opt").forEach(el => el.classList.remove("active")); div.classList.add("active"); };
+        mapGrid.appendChild(div);
+    });
+
+    window.onkeydown = e => keys[e.code] = true; window.onkeyup = e => keys[e.code] = false;
+    const bind = (id, key) => {
+        const el = document.getElementById(id);
+        el.onmousedown = el.ontouchstart = (e) => { e.preventDefault(); keys[key] = true; };
+        el.onmouseup = el.ontouchend = () => keys[key] = false;
+    };
+    bind("leftBtn", "ArrowLeft"); bind("rightBtn", "ArrowRight");
+
+    document.getElementById("open-shop").onclick = () => document.getElementById("shop-overlay").classList.remove("hidden");
+    document.getElementById("close-shop").onclick = () => document.getElementById("shop-overlay").classList.add("hidden");
+    document.getElementById("open-how").onclick = document.getElementById("pause-how").onclick = () => document.getElementById("how-overlay").classList.remove("hidden");
+    document.getElementById("open-desc").onclick = () => document.getElementById("desc-overlay").classList.remove("hidden");
+    document.getElementById("menu-dots").onclick = () => { if(gameActive) { isPaused = true; document.getElementById("pause-ui").classList.remove("hidden"); } };
+    document.getElementById("powerBtn").onclick = () => { if(gameActive && !isPaused) { isPaused = true; updatePowerUI(); document.getElementById("power-menu").classList.remove("hidden"); } };
+    document.getElementById("resume-btn").onclick = document.getElementById("close-power").onclick = resume;
+    document.getElementById("restart-game-btn").onclick = startGame;
+
+    function resume() { isPaused = false; document.querySelectorAll(".full-screen-overlay:not(#ui):not(#game-over-ui)").forEach(el => el.classList.add("hidden")); if(gameActive) requestAnimationFrame(gameLoop); }
+    function updatePowerUI() { document.getElementById("opt-fire").disabled = fire.cooldown > 0; document.getElementById("opt-fly").disabled = fly.cooldown > 0; }
+
+    document.getElementById("opt-nitro").onclick = () => { nitro.active = true; resume(); };
+    document.getElementById("opt-fire").onclick = () => { if(fire.cooldown <= 0){ fire.active = true; fire.timer = 300; fire.cooldown = 1800; resume(); } };
+    document.getElementById("opt-fly").onclick = () => { if(fly.cooldown <= 0){ fly.active = true; fly.timer = 300; fly.cooldown = 1200; resume(); } };
+
+    function createExplosion(x, y) {
+        for(let i=0; i<15; i++) {
+            particles.push({
+                x: x, y: y, vx: (Math.random()-0.5)*10, vy: (Math.random()-0.5)*10,
+                life: 30, color: i % 2 === 0 ? "orange" : "red", size: Math.random()*5 + 2
+            });
+        }
+        playSound(100, 'sawtooth', 0.3, 0.2);
+    }
+
+    function drawVehicle(x, y, w, h, color, isPlayer) {
+        ctx.save();
+        if(isPlayer) {
+            ctx.shadowBlur = 20;
+            if(fly.active) { ctx.shadowColor = "purple"; ctx.globalAlpha = 0.2; }
+            else if(nitro.active) ctx.shadowColor = "orange";
+            else if(fire.active) ctx.shadowColor = "red";
+            else ctx.shadowColor = color;
+        }
+        ctx.fillStyle = color; ctx.beginPath(); ctx.roundRect(x, y, w, h, 8); ctx.fill();
+        ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(x+5, y+15, w-10, 15);
+        ctx.fillStyle = isPlayer ? "white" : "red";
+        ctx.fillRect(x+5, y+(isPlayer?5:h-10), 10, 5); ctx.fillRect(x+w-15, y+(isPlayer?5:h-10), 10, 5);
+        if(isPlayer) { ctx.strokeStyle = ctx.shadowColor; ctx.lineWidth = 2; ctx.strokeRect(x,y,w,h); }
+        ctx.restore();
+    }
+
+    function gameLoop() {
+        if (!gameActive || isPaused) return;
+        if (keys["ArrowLeft"] && player.x > 20) player.x -= 8;
+        if (keys["ArrowRight"] && player.x < canvas.width - player.w - 20) player.x += 8;
+
+        let currentSpeed = (nitro.active && nitro.amt > 0) ? baseSpeed * 1.8 : baseSpeed;
+        if(nitro.active) { nitro.amt -= 1.2; if(nitro.amt <= 0) nitro.active = false; }
+        else if(nitro.amt < 100) nitro.amt += 0.16;
+
+        if(fire.active) { 
+            fire.timer--; 
+            if(frame % 6 === 0) { bullets.push({x: player.x + 20, y: player.y}); playSound(800, 'square', 0.05, 0.05); } 
+            if(fire.timer <= 0) fire.active = false; 
+        }
+        if(fire.cooldown > 0) fire.cooldown--;
+        if(fly.active) { fly.timer--; if(fly.timer <= 0) fly.active = false; }
+        if(fly.cooldown > 0) fly.cooldown--;
+
+        if(frame % 100 === 0) {
+            coins.push({x: Math.random() * (canvas.width - 60) + 30, y: -50, r: 8});
+        }
+
+        bullets.forEach((b, i) => {
+            b.y -= 15; if(b.y < 0) bullets.splice(i, 1);
+            enemies.forEach((e, ei) => { if(b.x > e.x && b.x < e.x + e.w && b.y < e.y + e.h && b.y > e.y) { 
+                createExplosion(e.x + e.w/2, e.y + e.h/2);
+                enemies.splice(ei, 1); bullets.splice(i,1); score += 10; 
+            }});
+        });
+
+        if(frame % 45 === 0) enemies.push({x: [45, 135, 225, 315][Math.floor(Math.random()*4)], y: -100, w: 45, h: 85, speed: baseSpeed * (0.6 + Math.random()*0.4), color: `hsl(${Math.random()*360}, 60%, 50%)`});
+
+        enemies.forEach((e, i) => {
+            e.y += currentSpeed * 0.8;
+            if(!fly.active && player.x < e.x+e.w && player.x+player.w > e.x && player.y < e.y+e.h && player.y+player.h > e.y) {
+                createExplosion(player.x + player.w/2, player.y + player.h/2);
+                gameOver();
+            }
+            if(e.y > canvas.height) { enemies.splice(i, 1); score++; baseSpeed += 0.04; }
+        });
+
+        coins.forEach((c, i) => {
+            c.y += currentSpeed * 0.7;
+            if(player.x < c.x + c.r && player.x + player.w > c.x - c.r && player.y < c.y + c.r && player.y + player.h > c.y - c.r) {
+                currentRunCoins++;
+                coins.splice(i, 1);
+                playSound(1200, 'sine', 0.1, 0.05);
+            }
+            if(c.y > canvas.height) coins.splice(i, 1);
+        });
+
+        particles.forEach((p, i) => { p.x += p.vx; p.y += p.vy; p.life--; if(p.life <= 0) particles.splice(i, 1); });
+
+        ctx.fillStyle = currentMap.road; ctx.fillRect(0,0,400,600);
+        ctx.fillStyle = currentMap.side; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(40,600); ctx.lineTo(360,600); ctx.lineTo(400,0); ctx.fill();
+        ctx.strokeStyle = currentMap.dash; ctx.setLineDash([30, 50]); ctx.lineDashOffset = -frame * currentSpeed;
+        for(let i=1; i<4; i++) { ctx.beginPath(); ctx.moveTo(i*100,0); ctx.lineTo(i*100,600); ctx.stroke(); }
+        
+        bullets.forEach(b => { ctx.fillStyle = "yellow"; ctx.fillRect(b.x, b.y, 5, 15); });
+        coins.forEach(c => {
+            ctx.fillStyle = "gold"; ctx.beginPath(); ctx.arc(c.x, c.y, c.r, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = "rgba(0,0,0,0.3)"; ctx.font = "bold 10px Arial"; ctx.fillText("$", c.x-3, c.y+4);
+        });
+
+        enemies.forEach(e => drawVehicle(e.x, e.y, e.w, e.h, e.color, false));
+        drawVehicle(player.x, player.y, player.w, player.h, playerColor, true);
+        particles.forEach(p => { ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill(); });
+
+        document.getElementById("nitroBar").style.width = nitro.amt + "%";
+        document.getElementById("fireBar").style.width = (fire.cooldown / 1800 * 100) + "%";
+        document.getElementById("flyBar").style.width = (fly.cooldown / 1200 * 100) + "%";
+        document.getElementById("scoreTxt").innerText = `SCORE: ${score}`;
+        document.getElementById("coinTxt").innerText = `COINS: ${currentRunCoins}`;
+        frame++; requestAnimationFrame(gameLoop);
+    }
+
+    function gameOver() { 
+        gameActive = false; 
+        totalCoins += currentRunCoins;
+        localStorage.setItem('racingBlast_totalCoins', totalCoins);
+        let isNewHigh = false;
+        if(score > highScore) { highScore = score; localStorage.setItem('racingBlast_highScore', highScore); isNewHigh = true; }
+        updateAccountDisplays();
+        document.getElementById("controls").classList.add("hidden"); 
+        document.getElementById("game-over-ui").classList.remove("hidden"); 
+        document.getElementById("finalScoreTxt").innerText = "SCORE: " + score; 
+        document.getElementById("finalCoinTxt").innerText = "EARNED COINS: " + currentRunCoins; 
+        if(isNewHigh) document.getElementById("newBestTxt").classList.remove("hidden");
+    }
+
+    function startGame() { 
+        if(audioCtx.state === 'suspended') audioCtx.resume(); 
+        playSound(440, 'sine', 0.1); 
+        score=0; currentRunCoins=0; baseSpeed=6; enemies=[]; bullets=[]; particles=[]; coins=[]; player.x=175; frame=0; 
+        nitro.amt=100; fire.cooldown=0; fly.cooldown=0; 
+        gameActive=true; isPaused=false; 
+        document.querySelectorAll(".full-screen-overlay").forEach(el => el.classList.add("hidden")); 
+        document.getElementById("controls").classList.remove("hidden"); 
+        requestAnimationFrame(gameLoop); 
+    }
+
+    document.getElementById("start-btn").onclick = startGame; document.getElementById("retry-btn").onclick = startGame;
+</script>
+</body>
+</html>
